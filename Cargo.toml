@@ -6,3 +6,4 @@ edition = "2021"
 [dependencies]
 ratatui = "0.29.0"
 crossterm = "0.28.1"
+cli-clipboard = "0.4.0"

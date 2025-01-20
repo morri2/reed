@@ -4,8 +4,11 @@ use std::{
     io::{self, stdout, Read, Stdout},
     time::{Duration, SystemTime},
 };
+use std::env;
 
-use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyEventState};
+use cli_clipboard::{ClipboardContext, ClipboardProvider};
+
+use crossterm::{event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyEventState}, style::Print};
 use ratatui::{
     buffer::Buffer,
     layout::{Position, Rect},
@@ -20,12 +23,47 @@ use ratatui::{
 const WPM_LIST: [u32; 8] = [150, 200, 250, 300, 350, 400, 450, 500];
 
 fn main() {
-    print!("\n\n\n\n\n\n\n");
 
-    let mut file = std::fs::File::open("text.txt").unwrap();
+    let args: Vec<String> = env::args().collect();
 
     let mut text = String::new();
-    let _read_res = file.read_to_string(&mut text);
+
+
+    let text_src_arg = if let Some(arg1) = args.get(1)   {
+        arg1
+    } else {
+        println!("(Text source unspecified - using default)");
+       ""
+    };
+
+    
+    println!("text-src-arg = {}", text_src_arg );
+
+    match text_src_arg {
+        "--lorem" | "--test" | "--example" =>  {
+            println!("reading example...");
+            let mut file = std::fs::File::open("lorem.txt").unwrap();
+            let _read_res = file.read_to_string(&mut text);
+        },
+        "--clip" | "-c" | "" => {
+            println!("reading clipboard...");
+
+            let mut clip_ctx = ClipboardContext::new().unwrap();
+            if clip_ctx.get_contents().is_ok() {
+                println!("clip: {} \n" ,clip_ctx.get_contents().unwrap());
+                text = clip_ctx.get_contents().unwrap();
+            } else  {}
+        }
+        _ =>  { println!("strange arg?");
+                return;
+        }
+    }
+
+
+
+    print!("\n\n\n\n\n\n\n");
+
+
 
     let mut app: App = App {
         text: text.chars().collect(),
@@ -88,6 +126,7 @@ pub fn sanitize_string(mut s: String) -> String {
 }
 
 impl App {
+
     pub fn get_word_string(&self, cidx_start: usize, cidx_end: usize) -> String {
         return sanitize_string(self.text[cidx_start..cidx_end].iter().collect());
     }
@@ -247,6 +286,19 @@ impl App {
         println!("done!");
         Ok(())
     }
+
+    pub fn set_status_string(&self, frame: &mut Frame, status: &str) {
+        
+        clear_lines(frame, frame.area().height - 1, frame.area().height);
+
+        Paragraph::new(Line::from(vec![
+            status.into()
+        ]))
+        .left_aligned()
+        
+        .render(Rect::new(0, frame.area().height-1, frame.area().width, 1), frame.buffer_mut());
+    }
+
 
     fn draw(&self, frame: &mut Frame) {
         let width = frame.area().width / 2;
